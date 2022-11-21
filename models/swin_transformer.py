@@ -600,9 +600,9 @@ class SwinTransformer(nn.Module):
         return x
 
     def forward(self, x):
-        x = self.forward_features(x)
-        x = self.head(x)
-        return x
+        x_ = self.forward_features(x)
+        x = self.head(x_)
+        return x, x_
 
     def flops(self):
         flops = 0
@@ -612,3 +612,4 @@ class SwinTransformer(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
+

@@ -26,7 +26,7 @@ from lr_scheduler import build_scheduler
 from optimizer import build_optimizer
 from logger import create_logger
 from utils import load_checkpoint, load_pretrained, save_checkpoint, NativeScalerWithGradNormCount, auto_resume_helper, \
-    reduce_tensor, parse_option
+    reduce_tensor, parse_option, con_loss, instance_con_loss
 
 
 
@@ -132,6 +132,7 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
     batch_time = AverageMeter()
     cls_loss_meter = AverageMeter()
     swap_loss_meter = AverageMeter()
+    con_loss_meter = AverageMeter()
     scale = int(1+config.TRAIN.SWAP)
     norm_meter = AverageMeter()
     scaler_meter = AverageMeter()
@@ -150,13 +151,19 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
         else:
             imgs = imgs[0]
         with torch.cuda.amp.autocast(enabled=config.AMP_ENABLE):
-            outputs = model(imgs)
+            outputs, feats = model(imgs)
         B = outputs.shape[0]
         loss_cls = criterion(outputs[:B//scale], label[:B//scale])
         loss = config.TRAIN.ORIGIN_W * loss_cls
         if config.TRAIN.SWAP:
             loss_swap = criterion(outputs[B//scale:], label[B//scale:])
             loss = loss + config.TRAIN.SWAP_W * loss_swap
+
+        if config.TRAIN.CON:
+            loss_con = instance_con_loss(feats, label)
+            loss = loss + config.TRAIN.CON_W * loss_con
+        else:
+            feats = None
 
         loss = loss / config.TRAIN.ACCUMULATION_STEPS
 
@@ -174,8 +181,12 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
 
         cls_loss_meter.update(loss_cls.item(), imgs.size(0) // scale)
 
+
         if config.TRAIN.SWAP:
             swap_loss_meter.update(loss_swap.item(), imgs.size(0) // scale)
+
+        if config.TRAIN.CON:
+            con_loss_meter.update(loss_con.item(), imgs.size(0))
 
         if grad_norm is not None:  # loss_scaler return None if not update
             norm_meter.update(grad_norm)
@@ -192,8 +203,9 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
                 f'Train: [{epoch}/{config.TRAIN.EPOCHS}][{idx}/{num_steps}]\t'
                 f'eta {datetime.timedelta(seconds=int(etas))} lr {lr:.6f}\t wd {wd:.4f}\t'
                 f'time {batch_time.val:.4f} ({batch_time.avg:.4f})\t'
-                f'loss {cls_loss_meter.val:.4f} ({cls_loss_meter.avg:.4f})\t'
-                f'loss {swap_loss_meter.val:.4f} ({swap_loss_meter.avg:.4f})\t'
+                f'loss_cls {cls_loss_meter.val:.4f} ({cls_loss_meter.avg:.4f})\t'
+                f'loss_swap {swap_loss_meter.val:.4f} ({swap_loss_meter.avg:.4f})\t'
+                f'loss_con {con_loss_meter.val:.4f} ({con_loss_meter.avg:.4f})\t'
                 f'grad_norm {norm_meter.val:.4f} ({norm_meter.avg:.4f})\t'
                 f'loss_scale {scaler_meter.val:.4f} ({scaler_meter.avg:.4f})\t'
                 f'mem {memory_used:.0f}MB')
@@ -220,7 +232,7 @@ def validate(config, data_loader, model):
 
         # compute output
         with torch.cuda.amp.autocast(enabled=config.AMP_ENABLE):
-            output = model(images)
+            output, _ = model(images)
 
         # measure accuracy and record loss
         loss = criterion(output, labels)

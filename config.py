@@ -198,10 +198,13 @@ _C.TRAIN.MOE.SAVE_MASTER = False
 # New args
 _C.TRAIN.SWAP = False
 _C.TRAIN.MASK = False
+_C.TRAIN.CON = False
 _C.TRAIN.MODEL = 'base'
 _C.TRAIN.SWAP_W = 1
 _C.TRAIN.ORIGIN_W = 1
 _C.TRAIN.NUM_PART = 2
+_C.TRAIN.MARGIN = 0.4
+_C.TRAIN.CON_W = 1
 # -----------------------------------------------------------------------------
 # Augmentation settings
 # -----------------------------------------------------------------------------
@@ -351,6 +354,9 @@ def update_config(config, args):
     if _check_args('mask'):
         config.TRAIN.MASK = args.mask
 
+    if _check_args('con'):
+        config.TRAIN.CON = args.con
+
     if _check_args('num_part'):
         config.TRAIN.NUM_PART = args.num_part
 
@@ -360,6 +366,9 @@ def update_config(config, args):
     if _check_args('origin_w'):
         config.TRAIN.ORIGIN_W = args.origin_w
 
+    if _check_args('con_w'):
+        config.TRAIN.CON_W = args.con_w
+
     if _check_args('epochs'):
         config.TRAIN.EPOCHS = args.epochs
 
@@ -368,6 +377,9 @@ def update_config(config, args):
 
     if _check_args('lr'):
         config.TRAIN.BASE_LR = args.lr
+
+    if _check_args('margin'):
+        config.TRAIN.MARGIN = args.margin
     # set local rank for distributed training
     config.LOCAL_RANK = args.local_rank
 

@@ -11,6 +11,8 @@ import torch.distributed as dist
 from torch._six import inf
 import argparse
 from config import get_config
+import torch.nn.functional as F
+import numpy as np
 
 def parse_option():
     parser = argparse.ArgumentParser('Swin Transformer training and evaluation script', add_help=False)
@@ -71,10 +73,16 @@ def parse_option():
     parser.add_argument('--mix', action='store_true',
                         help="whether to mix")
 
+    parser.add_argument('--con', action='store_true',
+                        help="whether to apply contrastive loss")
+
     parser.add_argument("--epochs", type=int, default=200,
                         help="Training epochs")
 
     parser.add_argument('--lr', type=float, default=5e-4,
+                        help="base learning rate")
+
+    parser.add_argument('--margin', type=float, default=0.4,
                         help="base learning rate")
 
     parser.add_argument('--dataset', type=str, help="dataset used.")
@@ -85,6 +93,42 @@ def parse_option():
 
     return args, config
 
+
+def con_loss(features, labels, margin=0.4):
+    B, _ = features.shape
+    features = F.normalize(features)
+    cos_matrix = features.mm(features.t())
+    pos_label_matrix = torch.stack([labels == labels[i] for i in range(B)]).float()
+    neg_label_matrix = 1 - pos_label_matrix
+    pos_cos_matrix = 1 - cos_matrix
+    neg_cos_matrix = cos_matrix - margin
+    neg_cos_matrix[neg_cos_matrix < 0] = 0
+    loss = (pos_cos_matrix * pos_label_matrix).sum() + (neg_cos_matrix * neg_label_matrix).sum()
+    loss /= (B * B)
+    return loss
+
+def instance_con_loss(features, labels, margin=1.0):
+    B, _ = features.shape
+    half = B//2
+    index = np.arange(half)
+    permute_idx = np.random.permutation(B)[:half]
+    while (index == permute_idx).sum() != 0 or (index == permute_idx//2).sum() != 0:
+        permute_idx = np.random.permutation(B)[:half]
+    mask_feats, shuffle_feats = features[:half], features[half:]
+    neg_feats = features[permute_idx]
+    cos_dis = F.normalize(mask_feats - shuffle_feats)
+    neg_dis = F.normalize(mask_feats - neg_feats)
+    # cos_matrix_pos = F.normalize(mask_feats - shuffle_feats)
+    # cos_matrix_neg = F.normalize(mask_feats - neg_feats)
+    loss = cos_dis.sum(dim=-1) - neg_dis.sum(dim=-1) + margin
+    # pos_label_matrix = torch.stack([labels == labels[i] for i in range(B)]).float()
+    # neg_label_matrix = 1 - pos_label_matrix
+    # pos_cos_matrix = 1 - cos_matrix
+    # neg_cos_matrix = cos_matrix - margin
+    # neg_cos_matrix[neg_cos_matrix < 0] = 0
+    loss[loss < 0] = 0
+    loss = loss.sum()/B
+    return loss
 
 def load_checkpoint(config, model, optimizer, lr_scheduler, loss_scaler, logger):
     logger.info(f"==============> Resuming form {config.MODEL.RESUME}....................")
