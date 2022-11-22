@@ -377,6 +377,8 @@ def update_config(config, args):
 
     if _check_args('lr'):
         config.TRAIN.BASE_LR = args.lr
+        config.TRAIN.WARMUP_LR = config.TRAIN.BASE_LR / 10 ** 3
+        config.TRAIN.MIN_LR = config.TRAIN.BASE_LR / 10 ** 2
 
     if _check_args('margin'):
         config.TRAIN.MARGIN = args.margin
