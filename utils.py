@@ -81,6 +81,8 @@ def parse_option():
 
     parser.add_argument('--lr', type=float, default=5e-4,
                         help="base learning rate")
+    parser.add_argument('--head_mul', type=float, default=5.0,
+                        help="base learning rate head mul")
 
     parser.add_argument('--margin', type=float, default=0.4,
                         help="base learning rate")

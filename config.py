@@ -380,6 +380,9 @@ def update_config(config, args):
         config.TRAIN.WARMUP_LR = config.TRAIN.BASE_LR / 10 ** 3
         config.TRAIN.MIN_LR = config.TRAIN.BASE_LR / 10 ** 2
 
+    if _check_args('head_mul'):
+        config.TRAIN.HEAD_MUL = args.head_mul
+
     if _check_args('margin'):
         config.TRAIN.MARGIN = args.margin
     # set local rank for distributed training
