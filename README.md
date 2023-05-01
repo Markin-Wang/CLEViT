@@ -23,7 +23,8 @@ that has a large inter-class distance while remaining tolerant to intra-class va
 
 ## Create Environment
 Please use the command below to create the environment for CLE-ViT.
-$ conda env create -f py36.yaml
+
+      $ conda env create -f py36.yaml
 
 
 ## Download Google pre-trained ViT models
