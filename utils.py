@@ -26,6 +26,7 @@ def parse_option():
 
     # easy config modification
     parser.add_argument('--batch-size', type=int, help="batch size for single GPU")
+    parser.add_argument('--eval-batch-size', type=int, help="batch size for single GPU")
     parser.add_argument('--data-path', type=str, help='path to dataset')
     parser.add_argument('--zip', action='store_true', help='use zipped dataset instead of folder dataset')
     parser.add_argument('--cache-mode', type=str, default='part', choices=['no', 'full', 'part'],
@@ -64,11 +65,15 @@ def parse_option():
                         help="whether to mask image")
     parser.add_argument('--swap_w', type=float, default=0.5,
                         help="mask weight for loss")
+    parser.add_argument('--con_w', type=float, default=0.5,
+                        help="loss weight for con loss")
     parser.add_argument('--origin_w', type=float, default=1,
                         help="weight for original loss")
     parser.add_argument('--swap', action='store_true',
                         help="whether to swap")
     parser.add_argument("--num_part", type=int, default=2,
+                        help="local_rank for distributed training on gpus")
+    parser.add_argument("--img_size", type=int, default=224,
                         help="local_rank for distributed training on gpus")
     parser.add_argument('--mix', action='store_true',
                         help="whether to mix")
@@ -96,6 +101,20 @@ def parse_option():
     return args, config
 
 
+def my_con_loss(features, labels, margin=0.4):
+    B, _ = features.shape
+    features = F.normalize(features)
+    cos_matrix = features.mm(features.t())
+    pos_label_matrix = torch.stack([labels == labels[i] for i in range(B)]).float()
+    neg_label_matrix = 1 - pos_label_matrix
+    pos_cos_matrix = 1 - cos_matrix
+    neg_cos_matrix = cos_matrix - margin
+    neg_cos_matrix[neg_cos_matrix < 0] = 0
+    loss = (pos_cos_matrix * pos_label_matrix).sum() + (neg_cos_matrix * neg_label_matrix).sum()
+    loss /= (B * B)
+    return loss
+
+
 def con_loss(features, labels, margin=0.4):
     B, _ = features.shape
     features = F.normalize(features)
@@ -108,6 +127,7 @@ def con_loss(features, labels, margin=0.4):
     loss = (pos_cos_matrix * pos_label_matrix).sum() + (neg_cos_matrix * neg_label_matrix).sum()
     loss /= (B * B)
     return loss
+
 
 def instance_con_loss(features, labels, margin=1.0):
     B, _ = features.shape
@@ -258,7 +278,8 @@ def save_checkpoint(config, epoch, model, max_accuracy, optimizer, lr_scheduler,
                   'epoch': epoch,
                   'config': config}
 
-    save_path = os.path.join(config.OUTPUT, f'ckpt_epoch_{epoch}.pth')
+    # save_path = os.path.join(config.OUTPUT, f'ckpt_epoch_{epoch}.pth')
+    save_path = os.path.join(config.OUTPUT, f'best.pth')
     logger.info(f"{save_path} saving......")
     torch.save(save_state, save_path)
     logger.info(f"{save_path} saved !!!")

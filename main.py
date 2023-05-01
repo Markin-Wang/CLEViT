@@ -28,8 +28,9 @@ from logger import create_logger
 from utils import load_checkpoint, load_pretrained, save_checkpoint, NativeScalerWithGradNormCount, auto_resume_helper, \
     reduce_tensor, parse_option, con_loss, instance_con_loss
 
+from torch.distributed.elastic.multiprocessing.errors import record
 
-
+@record
 def main(config):
     config.defrost()
     data_loader_train, config.MODEL.NUM_CLASSES = build_loader(config, logger=logger, is_pretrain=False, is_train=True)
@@ -53,6 +54,7 @@ def main(config):
     optimizer = build_optimizer(config, model)
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[config.LOCAL_RANK], broadcast_buffers=False)
     loss_scaler = NativeScalerWithGradNormCount()
+
 
     if config.TRAIN.ACCUMULATION_STEPS > 1:
         lr_scheduler = build_scheduler(config, optimizer, len(data_loader_train) // config.TRAIN.ACCUMULATION_STEPS)
@@ -108,15 +110,15 @@ def main(config):
         # if dist.get_rank() == 0 and (epoch % config.SAVE_FREQ == 0 or epoch == (config.TRAIN.EPOCHS - 1)):
         #     save_checkpoint(config, epoch, model_without_ddp, max_accuracy, optimizer, lr_scheduler, loss_scaler,
         #                     logger)
-
-        acc1, acc5, loss = validate(config, data_loader_val, model)
-        logger.info(f"Accuracy of the network on the test images: {acc1:.2f}%")
-        if max_accuracy < acc1:
-            max_accuracy, best_epoch = acc1, epoch
-            if dist.get_rank() == 0:
-                save_checkpoint(config, epoch, model_without_ddp, max_accuracy, optimizer, lr_scheduler, loss_scaler,
-                                logger)
-        # max_accuracy = max(max_accuracy, acc1)
+        if epoch % config.TRAIN.EVAL_EVERY == 0:
+            acc1, acc5, loss = validate(config, data_loader_val, model)
+            logger.info(f"Accuracy of the network on the test images: {acc1:.2f}%")
+            if max_accuracy < acc1:
+                max_accuracy, best_epoch = acc1, epoch
+                if dist.get_rank() == 0:
+                    save_checkpoint(config, epoch, model_without_ddp, max_accuracy, optimizer, lr_scheduler, loss_scaler,
+                                    logger)
+            # max_accuracy = max(max_accuracy, acc1)
         logger.info(f'Max accuracy: {max_accuracy:.2f}% in epoch:{best_epoch}.')
 
     total_time = time.time() - start_time
@@ -160,7 +162,8 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
             loss = loss + config.TRAIN.SWAP_W * loss_swap
 
         if config.TRAIN.CON:
-            loss_con = instance_con_loss(feats, label)
+            # loss_con = instance_con_loss(feats, label, config.TRAIN.MARGIN)
+            loss_con = con_loss(feats, label)
             loss = loss + config.TRAIN.CON_W * loss_con
         else:
             feats = None
@@ -222,14 +225,12 @@ def validate(config, data_loader, model):
     loss_meter = AverageMeter()
     acc1_meter = AverageMeter()
     acc5_meter = AverageMeter()
-
     end = time.time()
     for idx, batch in enumerate(data_loader):
         images = batch[0].cuda(non_blocking=True)
         labels = batch[-1].cuda(non_blocking=True)
         # images = images.cuda(non_blocking=True)
         # labels = labels.cuda(non_blocking=True)
-
         # compute output
         with torch.cuda.amp.autocast(enabled=config.AMP_ENABLE):
             output, _ = model(images)
@@ -307,20 +308,22 @@ if __name__ == '__main__':
     random.seed(seed)
     cudnn.benchmark = True
 
-    # linear scale the learning rate according to total batch size, may not be optimal
-    linear_scaled_lr = config.TRAIN.BASE_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
-    linear_scaled_warmup_lr = config.TRAIN.WARMUP_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
-    linear_scaled_min_lr = config.TRAIN.MIN_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
-    # gradient accumulation also need to scale the learning rate
-    if config.TRAIN.ACCUMULATION_STEPS > 1:
-        linear_scaled_lr = linear_scaled_lr * config.TRAIN.ACCUMULATION_STEPS
-        linear_scaled_warmup_lr = linear_scaled_warmup_lr * config.TRAIN.ACCUMULATION_STEPS
-        linear_scaled_min_lr = linear_scaled_min_lr * config.TRAIN.ACCUMULATION_STEPS
-    config.defrost()
-    config.TRAIN.BASE_LR = linear_scaled_lr
-    config.TRAIN.WARMUP_LR = linear_scaled_warmup_lr
-    config.TRAIN.MIN_LR = linear_scaled_min_lr
-    config.freeze()
+
+    if args.optim != 'sgd':
+        # linear scale the learning rate according to total batch size, may not be optimal
+        linear_scaled_lr = config.TRAIN.BASE_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+        linear_scaled_warmup_lr = config.TRAIN.WARMUP_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+        linear_scaled_min_lr = config.TRAIN.MIN_LR * config.DATA.BATCH_SIZE * dist.get_world_size() / 512.0
+        # gradient accumulation also need to scale the learning rate
+        if config.TRAIN.ACCUMULATION_STEPS > 1:
+            linear_scaled_lr = linear_scaled_lr * config.TRAIN.ACCUMULATION_STEPS
+            linear_scaled_warmup_lr = linear_scaled_warmup_lr * config.TRAIN.ACCUMULATION_STEPS
+            linear_scaled_min_lr = linear_scaled_min_lr * config.TRAIN.ACCUMULATION_STEPS
+        config.defrost()
+        config.TRAIN.BASE_LR = linear_scaled_lr
+        config.TRAIN.WARMUP_LR = linear_scaled_warmup_lr
+        config.TRAIN.MIN_LR = linear_scaled_min_lr
+        config.freeze()
 
     os.makedirs(config.OUTPUT, exist_ok=True)
     logger = create_logger(output_dir=config.OUTPUT, dist_rank=dist.get_rank(), name=f"{config.MODEL.NAME}")

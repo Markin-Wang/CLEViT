@@ -5,6 +5,7 @@ __pycache__/
 scripts
 datasets
 pretrained_models
+visualization
 logs
 output
 # launch bash
@@ -12,7 +13,7 @@ output
 # nsight system report files
 *.nsys-rep
 *.sqlite
-
+configs
 # C extensions
 *.so
 

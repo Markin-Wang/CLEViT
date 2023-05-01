@@ -603,6 +603,7 @@ class SwinTransformer(nn.Module):
         x_ = self.forward_features(x)
         x = self.head(x_)
         return x, x_
+        #return x
 
     def flops(self):
         flops = 0

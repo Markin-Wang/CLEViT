@@ -20,6 +20,7 @@ _C.BASE = ['']
 _C.DATA = CN()
 # Batch size for a single GPU, could be overwritten by command line argument
 _C.DATA.BATCH_SIZE = 128
+_C.DATA.EVAL_BATCH_SIZE = 128
 # Path to dataset, could be overwritten by command line argument
 _C.DATA.DATA_PATH = ''
 # Dataset name
@@ -148,7 +149,8 @@ _C.TRAIN = CN()
 _C.TRAIN.START_EPOCH = 0
 _C.TRAIN.EPOCHS = 300
 _C.TRAIN.WARMUP_EPOCHS = 20
-_C.TRAIN.WEIGHT_DECAY = 0.05
+_C.TRAIN.WEIGHT_DECAY = 5e-2
+# 5e-2 for origin
 _C.TRAIN.BASE_LR = 5e-3
 _C.TRAIN.HEAD_MUL = 5
 _C.TRAIN.WARMUP_LR = _C.TRAIN.BASE_LR/10**3
@@ -166,7 +168,7 @@ _C.TRAIN.USE_CHECKPOINT = False
 
 # LR scheduler
 _C.TRAIN.LR_SCHEDULER = CN()
-_C.TRAIN.LR_SCHEDULER.NAME = 'cosine'
+_C.TRAIN.LR_SCHEDULER.NAME = 'linear'
 # Epoch interval to decay LR, used in StepLRScheduler
 _C.TRAIN.LR_SCHEDULER.DECAY_EPOCHS = 30
 # LR decay rate, used in StepLRScheduler
@@ -176,6 +178,7 @@ _C.TRAIN.LR_SCHEDULER.WARMUP_PREFIX = True
 # [SimMIM] Gamma / Multi steps value, used in MultiStepLRScheduler
 _C.TRAIN.LR_SCHEDULER.GAMMA = 0.1
 _C.TRAIN.LR_SCHEDULER.MULTISTEPS = []
+_C.TRAIN.EVAL_EVERY = 1
 
 # Optimizer
 _C.TRAIN.OPTIMIZER = CN()
@@ -303,6 +306,8 @@ def update_config(config, args):
     # merge from specific arguments
     if _check_args('batch_size'):
         config.DATA.BATCH_SIZE = args.batch_size
+    if _check_args('eval_batch_size'):
+        config.DATA.EVAL_BATCH_SIZE = args.eval_batch_size
     if _check_args('data_path'):
         config.DATA.DATA_PATH = args.data_path
     if _check_args('zip'):
@@ -385,6 +390,10 @@ def update_config(config, args):
 
     if _check_args('margin'):
         config.TRAIN.MARGIN = args.margin
+
+    if _check_args('img_size'):
+        config.DATA.IMG_SIZE = args.img_size
+
     # set local rank for distributed training
     config.LOCAL_RANK = args.local_rank
 
