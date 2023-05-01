@@ -1,31 +1,29 @@
-# Feature Fusion Vision Transformer for Fine-Grained Visual Categorization
+# CLE-ViT: Contrastive Learning Encoded Transformer for Ultra-Fine-Grained Visual Categorization
 
-Official PyTorch implementation of [Feature Fusion Vision Transformer for Fine-Grained Visual Categorization](https://www.bmvc2021-virtualconference.com/assets/papers/0685.pdf) (BMVC 2021). 
+Official PyTorch implementation of [CLE-ViT: Contrastive Learning Encoded Transformer for Ultra-Fine-Grained
+Visual Categorization](https) (IJCAI 2023). 
 
 If you use the code in this repo for your work, please cite the following bib entries:
 
-    @article{wang2021feature,
+<!--     @article{wang2021feature,
       title={Feature Fusion Vision Transformer for Fine-Grained Visual Categorization},
       author={Wang, Jun and Yu, Xiaohan and Gao, Yongsheng},
       journal={British Machine Vision Conference},
       year={2021}
-    }
+    } -->
 
 
 ## Abstract
-<div style="text-align:justify"> The core for tackling the fine-grained visual categorization (FGVC) is to learn subtleyet discriminative features. Most previous works achieve this by explicitly selecting thediscriminative parts or integrating the attention mechanism via CNN-based approaches.However,  these  methods  enhance  the  computational  complexity  and  make  the  modeldominated  by  the  regions  containing  the  most  of  the  objects.   Recently,  vision  trans-former (ViT) has achieved SOTA performance on general image recognition tasks.  Theself-attention mechanism aggregates and weights the information from all patches to theclassification token,  making it perfectly suitable for FGVC. Nonetheless,  the classifi-cation  token  in  the  deep  layer  pays  more  attention  to  the  global  information,  lackingthe local and low-level features that are essential for FGVC. In this work, we proposea novel pure transformer-based framework Feature Fusion Vision Transformer (FFVT)where we aggregate the important tokens from each transformer layer to compensate thelocal, low-level and middle-level information.  We design a novel token selection mod-ule called mutual attention weight selection (MAWS) to guide the network effectivelyand efficiently towards selecting discriminative tokens without introducing extra param-eters.  We verify the effectiveness of FFVT on four benchmarks where FFVT achievesthe state-of-the-art performance. </div>
+<div style="text-align:justify"> Ultra-fine-grained visual classification (ultra-FGVC) targets at classifying sub-grained categories of fine-grained objects. This inevitably requires discriminative representation learning within a limited training set. Exploring intrinsic features from the object itself, e.g. , predicting the rotation of a given image, has demonstrated great progress towards learning discriminative representation. Yet none of these works consider explicit supervision for learning mutual information at instance level.  To this end, this paper introduces CLE-ViT, a novel contrastive learning encoded transformer, to address the fundamental problem in ultra-FGVC.  The core design is a self-supervised module that performs self-shuffling and masking and then distinguishes these altered images from other images.  This drives the model to learn an optimized feature space
+that has a large inter-class distance while remaining tolerant to intra-class variations.  By incorporating this self-supervised module, the network acquires more knowledge from the intrinsic structure of the input data, which improves the generalization ability without requiring extra manual annotations. CLE-ViT demonstrates strong performance on 7 publicly available datasets, demonstrating its effectiveness in the ultra-FGVC task. </div>
 
 
 <img src='architecture.png' width='1280' height='350'>
 
 
-## Prerequisites
-
-The following packages are required to run the scripts:
-- [Python >= 3.6]
-- [PyTorch = 1.5]
-- [Torchvision]
-- [Apex]
+## Create Environment
+Please use the command below to create the environment for CLE-ViT.
+$ conda env create -f py36.yaml
 
 
 ## Download Google pre-trained ViT models
