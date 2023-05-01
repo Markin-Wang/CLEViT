@@ -18,13 +18,13 @@ If you use the code in this repo for your work, please cite the following bib en
 that has a large inter-class distance while remaining tolerant to intra-class variations.  By incorporating this self-supervised module, the network acquires more knowledge from the intrinsic structure of the input data, which improves the generalization ability without requiring extra manual annotations. CLE-ViT demonstrates strong performance on 7 publicly available datasets, demonstrating its effectiveness in the ultra-FGVC task. </div>
 
 
-<img src='architecture.png' width='1280' height='350'>
+<img src='figure/method.jpeg' width='1280' height='350'>
 
 
 ## Create Environment
 Please use the command below to create the environment for CLE-ViT.
 
-      $ conda env create -f py36.yaml
+      $ conda env create -f env.yaml
 
 
 ## Download Google pre-trained ViT models
