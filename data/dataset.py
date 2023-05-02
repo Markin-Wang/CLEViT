@@ -16,6 +16,7 @@ from torchvision.datasets import VisionDataset
 from torchvision.datasets.folder import default_loader
 from torchvision.datasets.utils import download_url, list_dir, check_integrity, extract_archive, verify_str_arg
 import imageio
+import json
 
 
 class Cultivar():
@@ -46,6 +47,32 @@ class Cultivar():
 
     def __len__(self):
         return len(self.imgs_name)
+
+
+class leaf_hair():
+    def __init__(self, root, is_train=True, data_len=None, transform=None):
+        self.root = root
+        self.is_train = is_train
+        self.transform = transform
+        self.mode = 'train' if is_train else 'test'
+        self.anno = open(os.path.join(self.root, 'anno.json'))[self.mode]
+        labels = list(set([sample['label'] for sample in self.anno]))
+        self.label_remap = {labels[i]:i for i in range(len(labels))}
+
+    def __getitem__(self, index):
+        img_path = os.path.join(self.root, 'images', self.anno[index]['id'])
+        img, target, imgname = imageio.imread(img_path), self.label_remap[self.anno[index]['label']], self.anno[index]['id']
+        if len(img.shape) == 2:
+            img = np.stack([img] * 3, 2)
+        out = Image.fromarray(img, mode='RGB')
+        if self.transform is not None:
+            out = self.transform(out)
+
+        # only image in base, out + mask/cov id in sim mm
+        return out, target
+
+    def __len__(self):
+        return len(self.anno)
 
 class CUB():
     def __init__(self, root, is_train=True, data_len=None, transform=None):
@@ -92,7 +119,7 @@ class CUB():
             if self.transform is not None:
                 img = self.transform(img)
 
-        return img, imgname, target
+        return img, target
 
     def __len__(self):
         if self.is_train:
@@ -210,9 +237,9 @@ class dogs(Dataset):
     def __init__(self,
                  root,
                  train=True,
+                 cropped=False,
                  transform=None,
-                 cropped = False,
-                 target_transform = None,
+                 target_transform=None,
                  download=False):
 
         # self.root = join(os.path.expanduser(root), self.folder)
@@ -374,13 +401,9 @@ class dogs(Dataset):
         Returns:
             tuple: (image, target) where target is index of the target character class.
         """
-
         image_name, target_class = self._flat_breed_images[index]
         image_path = join(self.images_folder, image_name)
-        image = imageio.imread(image_path)
-        if len(image.shape) == 2:
-            image = np.stack([image] * 3, 2)
-        image = Image.fromarray(image, mode='RGB')
+        image = Image.open(image_path).convert('RGB')
 
         if self.cropped:
             image = image.crop(self._flat_breed_annotations[index][1])
@@ -390,6 +413,7 @@ class dogs(Dataset):
 
         if self.target_transform:
             target_class = self.target_transform(target_class)
+
         return image, target_class
 
     def download(self):
@@ -770,24 +794,22 @@ class WRD():
         return len(self.imgs_name)
     
 class FGVC_aircraft():
-    def __init__(self, root, is_train=True, transform=None):
+    def __init__(self, root, is_train=True, data_len=None, transform=None):
         self.root = root
         self.is_train = is_train
         self.transform = transform
-        train_img_path = os.path.join(self.root, 'images')
-        test_img_path = os.path.join(self.root, 'images')
-        train_label_file = open(os.path.join(self.root, 'anno', 'train.txt'))
-        test_label_file = open(os.path.join(self.root, 'anno', 'test.txt'))
+        train_img_path = os.path.join(self.root, 'data', 'images')
+        test_img_path = os.path.join(self.root, 'data', 'images')
+        train_label_file = open(os.path.join(self.root, 'data', 'train.txt'))
+        test_label_file = open(os.path.join(self.root, 'data', 'test.txt'))
         train_img_label = []
         test_img_label = []
         for line in train_label_file:
             train_img_label.append([os.path.join(train_img_path,line[:-1].split(' ')[0]), int(line[:-1].split(' ')[1])-1])
         for line in test_label_file:
             test_img_label.append([os.path.join(test_img_path,line[:-1].split(' ')[0]), int(line[:-1].split(' ')[1])-1])
-        # self.train_img_label = train_img_label[:data_len]
-        # self.test_img_label = test_img_label[:data_len]
-        self.train_img_label = train_img_label
-        self.test_img_label = test_img_label
+        self.train_img_label = train_img_label[:data_len]
+        self.test_img_label = test_img_label[:data_len]
 
     def __getitem__(self, index):
         if self.is_train:
@@ -800,7 +822,6 @@ class FGVC_aircraft():
 
         else:
             img, target = imageio.imread(self.test_img_label[index][0]), self.test_img_label[index][1]
-
             if len(img.shape) == 2:
                 img = np.stack([img] * 3, 2)
             img = Image.fromarray(img, mode='RGB')

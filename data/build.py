@@ -189,20 +189,8 @@ class MyTransform:
         self.swap_img = T.Compose([
             self.common_aug,
             self.to_tensor,
-            #T.RandomErasing(p=1, scale=(0.15, 0.45), ratio=(0.3, 3.3)),
             RandomSwap(config.TRAIN.NUM_PART)
         ])
-
-        self.mask_swap_img = T.Compose([
-            self.common_aug,
-            self.to_tensor,
-            T.RandomErasing(p=1, scale=(0.15, 0.45), ratio=(0.3, 3.3)),
-            RandomSwap(config.TRAIN.NUM_PART)
-        ])
-
-        # self.swap_img = T.Compose([
-        #     RandomSwap(config.TRAIN.NUM_PART)
-        # ])
 
         self.mask = config.TRAIN.MASK
         self.swap = config.TRAIN.SWAP
@@ -229,18 +217,9 @@ class MyTransform:
             imgs.append(self.mask_img(image))
         elif self.model == 'swap_only':
             imgs.append(self.swap_img(image))
-        elif self.model == 'full_m':
-            # img = self.mask_img(image)
-            # imgs.append(img)
-            # imgs.append(self.swap_img(img))
+        elif self.model == 'full':
             imgs.append(self.mask_img(image))
             imgs.append(self.swap_img(image))
-        elif self.model == 'full_b':
-            # img = self.mask_img(image)
-            # imgs.append(img)
-            # imgs.append(self.swap_img(img))
-            imgs.append(self.base(image))
-            imgs.append(self.mask_swap_img(image))
         # mask, mask_unrepeat = self.mask_generator()
         return imgs
 
@@ -272,7 +251,7 @@ def build_loader(config, logger, is_train=True):
             T.ToTensor(),
             T.Normalize(mean=torch.tensor(IMAGENET_DEFAULT_MEAN), std=torch.tensor(IMAGENET_DEFAULT_STD))])
 
-    batch_size = config.DATA.BATCH_SIZE if is_train else config.DATA.EVAL_BATCH_SIZE
+    batch_size = config.DATA.BATCH_SIZE
     logger.info(f'Pre-train data transform:\n{transform}')
 
     data_root = os.path.join(config.DATA.DATA_PATH, config.DATA.DATASET)
@@ -281,11 +260,9 @@ def build_loader(config, logger, is_train=True):
     elif config.DATA.DATASET == 'CUB':
         dataset = CUB(root=data_root, is_train=is_train, transform=transform)
     elif config.DATA.DATASET == 'dogs':
-        dataset = dogs(root=data_root, train=is_train, transform=transform)
-    elif config.DATA.DATASET == 'AFD':
-        dataset = AFD(root=data_root,is_train=is_train,transform=transform)
-    elif config.DATA.DATASET == 'air':
-        dataset = FGVC_aircraft(root=data_root, is_train=is_train, transform=transform)
+        dataset = dogs(root=data_root, is_train=is_train, transform=transform)
+    elif config.DATA.DATASET.startswith('leaf_hair'):
+        dataset = leaf_hair(root=data_root, is_train=is_train, transform=transform)
     else:
         dataset = Cultivar(root=data_root, is_train=is_train, transform=transform)
 
@@ -317,6 +294,10 @@ def build_loader(config, logger, is_train=True):
         num_classes = 198
     elif config.DATA.DATASET == 'BTF':
         num_classes = 10
+    elif config.DATA.DATASET == 'leaf_hair_1920':
+        num_classes = 11
+    elif config.DATA.DATASET == 'leaf_hair_2021':
+        num_classes = 27
     else:
         raise NotImplementedError("Not in supported dataset list.")
 
