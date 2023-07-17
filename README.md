@@ -31,7 +31,7 @@ Please use the command below to create the environment for CLE-ViT.
 
 * [Get models in this link](https://github.com/microsoft/Swin-Transformer): Swin-B, Swin-S...
 ```bash
-wget https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window12_384_22k.pth
+wget https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth
 ```
 
 ## Dataset
