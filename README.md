@@ -1,7 +1,7 @@
 # CLE-ViT: Contrastive Learning Encoded Transformer for Ultra-Fine-Grained Visual Categorization
 
 Official PyTorch implementation of [CLE-ViT: Contrastive Learning Encoded Transformer for Ultra-Fine-Grained
-Visual Categorization](https) (IJCAI 2023). 
+Visual Categorization](https://www.ijcai.org/proceedings/2023/0504.pdf) (IJCAI 2023). 
 
 If you use the code in this repo for your work, please cite the following bib entries:
 
