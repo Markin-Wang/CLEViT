@@ -189,25 +189,22 @@ class MyTransform:
         self.swap_img = T.Compose([
             self.common_aug,
             self.to_tensor,
+            #T.RandomErasing(p=1, scale=(0.15, 0.45), ratio=(0.3, 3.3)),
             RandomSwap(config.TRAIN.NUM_PART)
         ])
+
+        self.mask_swap_img = T.Compose([
+            self.common_aug,
+            self.to_tensor,
+            T.RandomErasing(p=1, scale=(0.15, 0.45), ratio=(0.3, 3.3)),
+            RandomSwap(config.TRAIN.NUM_PART)
+        ])
+
 
         self.mask = config.TRAIN.MASK
         self.swap = config.TRAIN.SWAP
         self.model = config.TRAIN.MODEL
-        model_patch_size = 16
 
-        # self.mask_generator = MaskGenerator(
-        #     input_size=args.img_size,
-        #     mask_patch_size=model_patch_size,
-        #     model_patch_size=model_patch_size,
-        #     mask_ratio=0.6,
-        # )
-
-        # self.cov_generator = CovGenerator(
-        #     input_size=args.img_size,
-        #     mask_patch_size=model_patch_size
-        # )
 
     def __call__(self, image):
         imgs = []
@@ -218,9 +215,8 @@ class MyTransform:
         elif self.model == 'swap_only':
             imgs.append(self.swap_img(image))
         elif self.model == 'full':
-            imgs.append(self.mask_img(image))
-            imgs.append(self.swap_img(image))
-        # mask, mask_unrepeat = self.mask_generator()
+            imgs.append(self.base(image))
+            imgs.append(self.mask_swap_img(image))
         return imgs
 
 

@@ -55,9 +55,9 @@ class leaf_hair():
         self.is_train = is_train
         self.transform = transform
         self.mode = 'train' if is_train else 'test'
-        self.anno = open(os.path.join(self.root, 'anno.json'))[self.mode]
+        self.anno = json.load(open(os.path.join(self.root, 'anno.json')))[self.mode]
         labels = list(set([sample['label'] for sample in self.anno]))
-        self.label_remap = {labels[i]:i for i in range(len(labels))}
+        self.label_remap = {labels[i]: i for i in range(len(labels))}
 
     def __getitem__(self, index):
         img_path = os.path.join(self.root, 'images', self.anno[index]['id'])
