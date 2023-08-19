@@ -3,7 +3,7 @@ python -m torch.distributed.launch --nproc_per_node 1 --master_port 12345  main.
 --dataset soybean_gene \
 --tag $tag \
 --lr 2e-3 \
---model full_b \
+--model full \
 --mask \
 --swap \
 --con \
